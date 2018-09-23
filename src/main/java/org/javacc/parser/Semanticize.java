@@ -77,7 +77,7 @@ public class Semanticize extends JavaCCGlobals {
      */
     for (Iterator<NormalProduction> it = bnfproductions.iterator(); it.hasNext();) {
       NormalProduction p = it.next();
-      if (production_table.put(p.getLhs(), p) != null) {
+      if (production_table.put(p.getLhs(), p) != null) { // HANKANOTE ulozi lhs -> p a vrati co bylo puvodne asoc. s lhs
         JavaCCErrors.semantic_error(p, p.getLhs() + " occurs on the left hand side of more than one production.");
       }
     }
@@ -414,6 +414,11 @@ public class Semanticize extends JavaCCGlobals {
         NormalProduction prod = it.next();
         addLeftMost(prod, prod.getExpansion());
       }
+      
+      for (Iterator<NormalProduction> it = bnfproductions.iterator(); it.hasNext();) {
+        NormalProduction prod = it.next(); 
+        System.out.println(prod.getLhs() + ": " + prod.getExpansion().internal_name); // HANKANOTE
+      }
 
       // Now the following loop calls a recursive walk routine that searches for
       // actual left recursions.  The way the algorithm is coded, once a node has
@@ -421,7 +426,7 @@ public class Semanticize extends JavaCCGlobals {
       // in any other loop.
       for (Iterator<NormalProduction> it = bnfproductions.iterator(); it.hasNext();) {
         NormalProduction prod = it.next();
-        if (prod.getWalkStatus() == 0) {
+        if (prod.getWalkStatus() == 0) { //HANKANOTE nezpracovany uzel
           prodWalk(prod);
         }
       }
@@ -521,12 +526,12 @@ public class Semanticize extends JavaCCGlobals {
 
   // Updates prod.leftExpansions based on a walk of exp.
   static private void addLeftMost(NormalProduction prod, Expansion exp) {
-    if (exp instanceof NonTerminal) {
+    if (exp instanceof NonTerminal) { // HANKANOTE A -> B
       for (int i=0; i<prod.leIndex; i++) {
         if (prod.getLeftExpansions()[i] == ((NonTerminal)exp).getProd()) {
-          return;
+          return; // HANKANOTE neterminal uz je na seznamu
         }
-      }
+      } // HANKANOTE neni na seznamu, tak pridame
       if (prod.leIndex == prod.getLeftExpansions().length) {
         NormalProduction[] newle = new NormalProduction[prod.leIndex*2];
         System.arraycopy(prod.getLeftExpansions(), 0, newle, 0, prod.leIndex);
@@ -567,7 +572,7 @@ public class Semanticize extends JavaCCGlobals {
       if (prod.getLeftExpansions()[i].getWalkStatus() == -1) {
         prod.getLeftExpansions()[i].setWalkStatus(-2);
         loopString = prod.getLhs() + "... --> " + prod.getLeftExpansions()[i].getLhs() + "...";
-        if (prod.getWalkStatus() == -2) {
+        if (prod.getWalkStatus() == -2) { // HANKANOTE to se stane asi kdyz prod == prod.getLeftExpansions()[i]
           prod.setWalkStatus(1);
           JavaCCErrors.semantic_error(prod, "Left recursion detected: \"" + loopString + "\"");
           return false;
@@ -576,9 +581,9 @@ public class Semanticize extends JavaCCGlobals {
           return true;
         }
       } else if (prod.getLeftExpansions()[i].getWalkStatus() == 0) {
-        if (prodWalk(prod.getLeftExpansions()[i])) {
-          loopString = prod.getLhs() + "... --> " + loopString;
-          if (prod.getWalkStatus() == -2) {
+        if (prodWalk(prod.getLeftExpansions()[i])) { // HANKANOTE nerozbaleny uzel, tak kontrolujeme nejlevejsi
+          loopString = prod.getLhs() + "... --> " + loopString; // HANKANOTE uzel nemel levou rekurzi
+          if (prod.getWalkStatus() == -2) { // HANKANOTE neprima rekurze
             prod.setWalkStatus(1);
             JavaCCErrors.semantic_error(prod, "Left recursion detected: \"" + loopString + "\"");
             return false;

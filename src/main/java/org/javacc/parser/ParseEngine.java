@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 import static org.javacc.parser.JavaCCGlobals.*;
@@ -46,7 +47,9 @@ public class ParseEngine {
   private boolean jj2LA;
   private CodeGenerator codeGenerator;
   private boolean isJavaDialect = Options.isOutputLanguageJava();
-
+  private Map simpleProductions = new java.util.HashMap();
+  private List<NormalProduction> simpleProductionsList = new ArrayList<NormalProduction>();
+  private Integer nontermCount = 0;
 
 
   /**
@@ -230,15 +233,15 @@ public class ParseEngine {
    * A particular action entry ("actions[i]") can be null, in which
    * case, a noop is generated for that action.
    */
-  String buildLookaheadChecker(Lookahead[] conds, String[] actions) {
+  String buildLookaheadChecker(Lookahead[] conds, String[] actions) { // HANKANOTE vypada to, ze stavi switch prikazy
 
     // The state variables.
     int state = NOOPENSTM;
     int indentAmt = 0;
     boolean[] casedValues = new boolean[tokenCount];
-    String retval = "";
-    Lookahead la;
-    Token t = null;
+    String retval = ""; // HANKANOTE vygenerovany kod
+    Lookahead la; // HANKANOTE !!!!
+    Token t = null; // HANKANOTE tokenCount = pocet druhu tokenu (o 1 vetsi nez nejvyssi ord)
     int tokenMaskSize = (tokenCount-1)/32 + 1;
     int[] tokenMask = null;
 
@@ -247,7 +250,7 @@ public class ParseEngine {
     while (index < conds.length) {
 
       la = conds[index];
-      jj2LA = false;
+      jj2LA = false; // HANKANOTE je treba pocitat semanticky lookahead?
 
       if ((la.getAmount() == 0) ||
           Semanticize.emptyExpansionExists(la.getLaExpansion()) ||
@@ -322,7 +325,7 @@ public class ParseEngine {
           case OPENIF:
             retval += "\u0002\n" + "} else {\u0001";
             // Control flows through to next case.
-          case NOOPENSTM:
+          case NOOPENSTM: // HANKANOTE otevri switch
             retval += "\n" + "switch (";
             if (Options.getCacheTokens()) {
               if(Options.isOutputLanguageCpp()) {
@@ -345,7 +348,7 @@ public class ParseEngine {
             // Don't need to do anything if state is OPENSWITCH.
           }
           for (int i = 0; i < tokenCount; i++) {
-            if (firstSet[i]) {
+            if (firstSet[i]) { // HANKANOTE dany token je ve First tehle expanze (=conds[x])
               if (!casedValues[i]) {
                 casedValues[i] = true;
                 retval += "\u0002\ncase ";
@@ -632,7 +635,7 @@ public class ParseEngine {
     }
   }
 
-  void buildPhase1Routine(BNFProduction p) {
+  void buildPhase1Routine(BNFProduction p) { // HANKANOTE generuje metodu pro produkci
     Token t;
     t = (Token)(p.getReturnTypeTokens().get(0));
     boolean voidReturn = false;
@@ -651,7 +654,7 @@ public class ParseEngine {
         codeGenerator.printToken(t);
       }
       codeGenerator.printTrailingComments(t);
-      codeGenerator.genCode(" " + p.getLhs() + "(");
+      codeGenerator.genCode(" " + p.getLhs() + "("); // NETERM(params) {
       if (p.getParameterListTokens().size() != 0) {
         codeGenerator.printTokenSetup((Token)(p.getParameterListTokens().get(0)));
         for (java.util.Iterator it = p.getParameterListTokens().iterator(); it.hasNext();) {
@@ -675,7 +678,7 @@ public class ParseEngine {
       error_ret = generateCPPMethodheader(p, t);
     }
 
-    codeGenerator.genCode(" {");
+    codeGenerator.genCode(" {"); // telo metody NETERM
 
     if ((Options.booleanValue(Options.USEROPTION__CPP_STOP_ON_FIRST_ERROR) && error_ret != null)
         || (Options.getDepthLimit() > 0 && !voidReturn && !isJavaDialect)) {
@@ -698,7 +701,7 @@ public class ParseEngine {
         codeGenerator.genCodeLine("    try {");
         indentamt = 6;
       }
-    
+    // HANKANOTE semanticke akce
     if (!Options.booleanValue(Options.USEROPTION__CPP_IGNORE_ACTIONS) &&
         p.getDeclarationTokens().size() != 0) {
       codeGenerator.printTokenSetup((Token)(p.getDeclarationTokens().get(0))); cline--;
@@ -709,7 +712,7 @@ public class ParseEngine {
       codeGenerator.printTrailingComments(t);
     }
     
-    String code = phase1ExpansionGen(p.getExpansion());
+    String code = phase1ExpansionGen(p.getExpansion()); // HANKANOTE telo metody
     dumpFormattedString(code);
     codeGenerator.genCodeLine("");
     
@@ -752,7 +755,7 @@ public class ParseEngine {
     }
   }
 
-  String phase1ExpansionGen(Expansion e) {
+  String phase1ExpansionGen(Expansion e) { // HANKANOTE generuje telo metody, e je prava strana produkce
     String retval = "";
     Token t = null;
     Lookahead[] conds;
@@ -838,11 +841,11 @@ public class ParseEngine {
       // thrown first.
       Sequence nestedSeq;
       for (int i = 0; i < e_nrw.getChoices().size(); i++) {
-        nestedSeq = (Sequence)(e_nrw.getChoices().get(i));
+        nestedSeq = (Sequence)(e_nrw.getChoices().get(i)); // HANKANOTE v podstate jen zmena typu
         actions[i] = phase1ExpansionGen(nestedSeq);
         conds[i] = (Lookahead)(nestedSeq.units.get(0));
       }
-      retval = buildLookaheadChecker(conds, actions);
+      retval = buildLookaheadChecker(conds, actions); // HANKANOTE generuje switch
     } else if (e instanceof Sequence) {
       Sequence e_nrw = (Sequence)e;
       // We skip the first element in the following iteration since it is the
@@ -866,9 +869,9 @@ public class ParseEngine {
           retval += "\n}";
         }
       }
-    } else if (e instanceof OneOrMore) {
+    } else if (e instanceof OneOrMore) { // HANKANOTE napr. foo+
       OneOrMore e_nrw = (OneOrMore)e;
-      Expansion nested_e = e_nrw.expansion;
+      Expansion nested_e = e_nrw.expansion; 
       Lookahead la;
       if (nested_e instanceof Sequence) {
         la = (Lookahead)(((Sequence)nested_e).units.get(0));
@@ -1415,16 +1418,457 @@ public class ParseEngine {
     e.inMinimumSize = false;
     return retval;
   }
+  
+  /**
+   * Add items from f to Follow(p)
+   * @param f items that are true will be added to Follow(p) (the same style as array firstSet - f[ord] = T/F)
+   * @param p the production for which the follow set should be updated
+   * @return true if Follow(p) changed, false otherwise
+   */
+  private boolean unionFollow(boolean[] f, NormalProduction p) {
+      boolean change = false;
+      for (int i = 0; i < f.length; i++) { 
+          if (f[i] && p.addFollow(i))
+              change = true;
+      }
+      return change;
+  }
+  
+  /**
+   * Generate Follow sets for all nonterminals. Start symbol is the one that 
+   * is defined first in the grammar file.
+   */
+  private void genFollowSet() {
+    ((NormalProduction)simpleProductions.get(0)).addFollow(0); // starting symbol has EOF (index 0) in Follow
+    boolean change;
+    do {
+        change = false;
+        for (NormalProduction np : simpleProductionsList) {  
+            String lhs = np.getLhs();
+            Expansion e = np.getExpansion();
+            if (e instanceof Choice) { // lhs -> x | y | ... x is a Sequence (probably)
+                // so break it into lhs -> x, lhs -> y, ...
+                Expansion nested;
+                Choice c = (Choice)e;
+                for (int i = 0; i < c.getChoices().size(); i++) {
+                    nested = (Expansion)(c.getChoices().get(i)); // should be sequence
+                    change = countFollow(nested, lhs) | change;
+                }
+            } else if (e instanceof NonTerminal) { // lhs -> e
+                NormalProduction p2 = ((NonTerminal)e).getProd();
+                // Follow(e) = Follow(lhs) -> add Follow(np=lhs) to Follow(p2=e)
+                change = unionFollow(np.getFollowSet(),p2) | change;
+            } else if (e instanceof Sequence) {
+                change  = countFollow(e,lhs) | change;
+            }
+            // neither Action nor RegularExpression change anything
+        }
+    } while (change);
+  }
+  
+  private boolean[] firstChoice(Choice c) {
+      boolean[] ret = new boolean[tokenCount];
+      for (int i = 0; i < tokenCount; i++) {
+          ret[i] = false;
+      }
+      // union of each choice's First
+      for (java.util.Iterator choiceIterator = c.getChoices().iterator(); choiceIterator.hasNext();) {
+          Sequence s = (Sequence)choiceIterator.next();
+          boolean[] firstSeq = firstSequence(s);
+          for (int i = 0; i < tokenCount; i++) {
+            ret[i] = firstSeq[i] || ret[i];
+          }
+      }      
+      return ret;
+  }
+  
+  private boolean[] firstSequence(Sequence s) {
+      boolean[] ret = new boolean[tokenCount];
+      for (int i = 0; i < tokenCount; i++) {
+          ret[i] = false;
+      }
+      for (java.util.Iterator unitIterator = s.units.iterator(); unitIterator.hasNext();) {
+          Expansion e = (Expansion)unitIterator.next();
+          boolean[] first = firstExpansion(e);
+          for (int i = 0; i < tokenCount; i++) {
+            ret[i] = first[i] || ret[i];
+          }
+          if (!canBeEmpty(e))
+              return ret;
+      }
+      return ret;
+  }
+  
+  private boolean[] firstExpansion(Expansion e) { // asi bude jen pro NonTerminal/RegExp
+      boolean[] ret = new boolean[tokenCount];
+      for (int i = 0; i < tokenCount; i++)
+          ret[i] = false;
+      
+      if (e instanceof RegularExpression) {
+          ret[((RegularExpression)e).ordinal] = true;
+      } else if (e instanceof NonTerminal) {
+          NormalProduction np = (NormalProduction)simpleProductions.get(((NonTerminal)e).getName()); //((NonTerminal)e).getProd();
+          System.arraycopy(np.getFirstSet(), 0, ret, 0, tokenCount);
+      }/* else if (e instanceof Choice) {
+          ret = firstChoice((Choice)e);
+      } else if (e instanceof Sequence) {
+          ret = firstSequence((Sequence)e);
+      } */     
+      return ret;
+  }
+  
+  /**
+   * Can an empty string be derived from an Expansion
+   */
+  private boolean canBeEmpty(Expansion e) {
+      if (e instanceof RegularExpression) {
+          return false;
+      } else if (e instanceof NonTerminal) {
+          return (((NonTerminal)e).getProd()).isEmptyPossible();
+      } /*else if (e instanceof Choice) {
+          for (java.util.Iterator choiceIterator = ((Choice)e).getChoices().iterator(); choiceIterator.hasNext();) {
+            Expansion choice = (Expansion)choiceIterator.next(); 
+            if (canBeEmpty(choice))
+                return true;
+          }
+          return false;
+      } else if (e instanceof Sequence) {      
+        Sequence s = (Sequence)e;
+        for (java.util.Iterator unitIterator = s.units.iterator(); unitIterator.hasNext();) {
+            Expansion ex = (Expansion)unitIterator.next(); 
+            if (!canBeEmpty(ex))
+                return false;
+        }
+        return true;
+      }*/
+      return true;
+  }
+  
+  /**
+   * Count Follow sets for all nonterminals that lhs directly expands to.
+   * Bsically it goes through all the expansions (of the prododuction with lhs
+   * as a left hand side) and counts updates Follow set of each Nonterminal it reaches. 
+   * @param e the expansion lhs expands to
+   * @param lhs nonterminal name
+   * @return true if any changes were made, false otherwise
+   */
+  private boolean countFollow(Expansion e, String lhs) {
+      // NonTerminal.getProd() might be pointing to a not transformed production. 
+      // therefore it shouldn't be used. To get a production, use the way around
+      // instead: simpleProductions.get(NonTerminal.getName())
+    NormalProduction np = (NormalProduction)simpleProductions.get(lhs);
+    // 1. dostat se do nejake sekvence
+    // 2. odtud pokracovat
+    
+    if (e instanceof NonTerminal) { // lhs -> e
+        NormalProduction p2 = ((NonTerminal)e).getProd();
+        // Follow(e) = Follow(lhs) -> add Follow(np=lhs) to Follow(p2=e)
+        return unionFollow(np.getFollowSet(),p2);
+    } else if (e instanceof Sequence) { // np -> X Y Z
+        // postupuju jeden po druhem a pokud narazim na NonTerminal, spocitam First pro zbytek retezce
+        // a zkontroluju, jestli zbytek muze byt Empty, pak pridam i Follow(lhs)    
+       
+       List<Expansion> expansionList = expansionToList(e);
+       List units = ((Sequence)e).units;
+       Expansion e0 = (Expansion)units.get(0);
+       for (int i = 1; i < expansionList.size(); i++) {
+           Expansion e1 = expansionList.get(i);
+           if (e0 instanceof NonTerminal) {
+               // count Follow(e0)
+               NormalProduction prod0 = (NormalProduction)simpleProductions.get(((NonTerminal)e0).getName());
+               boolean cont = true;
+               int j = i; // index for going through the expansion to find follow for nonterminal i-1
+               while (cont) {
+                   if (e1 instanceof NonTerminal) {
+                       // Follow(e0) U= First(e1)
+                       NormalProduction prod1 = (NormalProduction)simpleProductions.get(((NonTerminal)e1).getName());
+                       unionFollow(prod1.getFirstSet(),prod0);
+                       if (!prod1.isEmptyPossible()) {
+                           cont = false;
+                       } else {
+                           j++;
+                           e1 = expansionList.get(j);
+                       }
+                   } else if (e1 instanceof Choice) {
+                       // oteviram Choice! Zjistit First(Choice) & canBeEmpty(Choice)
+                       // tady potrebuju counter kvuli zanorenym choices                       
+                       boolean empty = false; // can any choice be empty
+                       boolean emptyChoice = true; // variable to count if a specific choice can be empty
+                       Sequence choiceSequence = new Sequence();
+                       int depthCount = 0; // in case there are choices within a choice
+                       while (!(e1 instanceof TryBlock) && depthCount == 0) { // end of choice
+                           j++;
+                            e1 = expansionList.get(j);
+                            if (e1 instanceof Choice) { // prekopiruj vsechno dokud nenarazis na spravny TryBlock? tim padem nepotrebuju else if pro TryBlock
+                                depthCount++;
+                            } else if (e1 instanceof TryBlock) { // end of inner choice
+                                depthCount--;
+                            } else if (e1 instanceof Lookahead) { // make sure depth is 0!
+                                // send choiceSequence to get empty & first
+                                boolean[] choiceFirst = firstExpansion(choiceSequence);
+                                unionFollow(choiceFirst,prod0);
+                            } else if (e1 instanceof RegularExpression) {
+                                choiceSequence.units.add(e1);
+                                emptyChoice = false;
+                            } else if (e1 instanceof NonTerminal) {
+                                choiceSequence.units.add(e1);
+                                NormalProduction px = (NormalProduction)simpleProductions.get(((NonTerminal)e1).getName());
+                                emptyChoice = px.isEmptyPossible();
+                            }
+                       }
+                   }
+               }
+               
+           } else if (e0 instanceof Choice) { // zacatek Choice
+               // zanor se nejak - asi to bude chtit rezgenerovat choice, abych 
+               // to mohla pocitat linearne. -> zacatek choice, konec choice a oddelovace
+               // Protoze nemuzu mit vic produkci pro jeden neterminal
+               e0 = e1;
+
+               // ted musim zpracovat celoun -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------nm,tuhle choice (vc. vsech moznosti)
+               // idealne nejak nerekurzivne
+           } else if (e0 instanceof Lookahead) { // dalsi moznost
+               ;
+           } else if (e0 instanceof TryBlock) { // konec Choice
+               ;
+           } // ignore Actions
+       }
+    } // neither Action nor RegularExpression change anything 
+    return false; // none of the above -> nothing changed
+  }
+  
+  /**
+   * Transforms an Expansion (Sequence) into an ArrayList which contains only terminals, nonterminals
+   * and zarazky, see below
+   * Choice: a | b | c -> Choice, a, Lookahead, b, Lookahead, c, TryBlock
+   * @param e sequence to be transformed
+   * @return List of terminals and nonterminals, plus special expansions to maintain structure of sequence
+   */
+  private List<Expansion> expansionToList(Expansion e) {
+      List<Expansion> l = new ArrayList<Expansion>();
+      if (e instanceof RegularExpression) {
+          l.add(e);
+      } else if (e instanceof NonTerminal) {
+          l.add(e);
+      } else if (e instanceof Choice) {  
+          l.add(new Choice());
+          for (java.util.Iterator choiceIterator = ((Choice)e).getChoices().iterator(); choiceIterator.hasNext();) { 
+              Expansion ex = (Expansion)choiceIterator.next();
+              l.addAll(expansionToList(ex)); // it should always be sequence
+              
+              if (choiceIterator.hasNext()) {
+                  l.add(new Lookahead());
+              }
+          }
+          l.add(new TryBlock());
+      } else if (e instanceof Sequence) {
+          for (java.util.Iterator unitIterator = ((Sequence)e).units.iterator(); unitIterator.hasNext();) {
+              Expansion ex = (Expansion)unitIterator.next();
+              if (ex instanceof RegularExpression || ex instanceof NonTerminal) {
+                  l.add(ex);
+              } else {
+                  l.addAll(expansionToList(ex));
+              }
+          }
+      } // nothing for Action
+      return l;
+  }
+  
+  private void ebnfToBnf() {
+      // DONE prevedu EBNF na BNF
+      // spocitam Follow pro kazdy neterminal
+      // DONE tem neterminalum, ktere byly puvodni prekopiruju Follow do oficialniho objektu
+      
+      for (java.util.Iterator prodIterator = bnfproductions.iterator(); prodIterator.hasNext();) {
+          NormalProduction prod = (NormalProduction)prodIterator.next();
+          BNFProduction newProd = new BNFProduction();
+          
+          if (!(prod instanceof BNFProduction)) { // it wasn't BNF, I'll make it BNF!
+              newProd.setExpansion(new Action());              
+          } else {             
+            // copy production with rewritten expansion
+            Expansion newExp = expansionToBNF(prod.getExpansion());            
+            newProd.setExpansion(newExp);
+          }
+          String lhs = prod.getLhs();
+          newProd.setLhs(lhs);
+          newProd.setEmptyPossible(prod.isEmptyPossible());
+          simpleProductions.put(lhs, newProd);
+          simpleProductionsList.add(newProd);
+      }
+  }
+  
+  /**
+   * Transforms an expansion in EBNF to BNF to simplify construction of Follow
+   * sets. Note that he transformation isn't exact - no epsilon is used and creating
+   * direct recursion is avoided. Therefore the gramar isn't equivalent 
+   * to the original one. The difference is in the case of the  transformation of 
+   * ZeroOrOne, ZeroOrMore and OneOrMore. The resulting First and Follow sets 
+   * will be, however, correct.
+   * @param e expansion to be transformed
+   * @return transformed expansion - NonTerminal, Terminal, Choice, Sequence or Action
+   */
+  private Expansion expansionToBNF(Expansion e) {
+      if (e instanceof RegularExpression) {
+          return e;
+      } else if (e instanceof NonTerminal) {
+          return e; // getProd() will be pointing to the old not transformed production. But I can't do anything about it at this point
+      } else if (e instanceof Choice) {
+          List choices = ((Choice)e).getChoices();
+          List newChoices = new ArrayList<Expansion>();
+          for (java.util.Iterator choiceIterator = choices.iterator(); choiceIterator.hasNext();) {
+              Expansion exp = (Expansion)choiceIterator.next();
+              Expansion newExp = expansionToBNF(exp);
+              newChoices.add(newExp);
+          }
+          Choice c = new Choice();
+          c.setChoices(newChoices);
+          return c;
+      } else if (e instanceof Sequence) {
+          Sequence newSeq = new Sequence();
+          List newUnits = new ArrayList<Expansion>();
+          for (java.util.Iterator unitIterator = ((Sequence)e).units.iterator(); unitIterator.hasNext();) {
+              Expansion exp = (Expansion)unitIterator.next();
+              Expansion newExp = expansionToBNF(exp);
+              if (newExp instanceof Sequence) { // I don't want to have a sequence in a sequence X Y (A B C) Z ...
+                  newUnits.addAll(((Sequence)newExp).units);
+              } else {
+                  newUnits.add(newExp);
+              }
+          }
+          newSeq.units = newUnits;
+          return newSeq;
+      } else if (e instanceof ZeroOrOne) {
+          // (exp)? --> X = epsilon | exp ... X = exp and set X.isEmptyPossible() = true
+          Expansion exp = expansionToBNF(((ZeroOrOne)e).expansion);
+          BNFProduction x = new BNFProduction(); // create X -> exp
+          x.setEmptyPossible(true); // because it can
+          x.setExpansion(exp); // add the expansion of X
+          
+          nontermCount++;
+          String name = nontermCount.toString();
+          x.setLhs(name);
+          simpleProductions.put(name, x);
+          simpleProductionsList.add(x);
+          // now create the actual nonterminal X
+          NonTerminal nx = new NonTerminal();
+          nx.setName(name);
+          nx.setProd(x);
+          return nx;
+      } else if (e instanceof ZeroOrMore) {
+          // (exp)* --> X = epsilon | X exp ... X = exp exp and set X.isEmptyPossible() = true
+          Expansion exp = expansionToBNF(((ZeroOrMore)e).expansion);
+          BNFProduction x = new BNFProduction(); // create X -> s
+          Sequence s = new Sequence(); // exp exp
+          if (exp instanceof Sequence) {
+              s.units.addAll(((Sequence)exp).units); // so that we don't have (A B C) (A B C) but rather A B C A B C
+              s.units.addAll(((Sequence)exp).units);
+          } else {
+              s.units.add(exp);
+              s.units.add(exp);
+          }
+                    
+          nontermCount++;
+          String name = nontermCount.toString();          
+          x.setLhs(name);
+          x.setEmptyPossible(true);
+          x.setExpansion(s);
+          simpleProductions.put(name, x);   
+          simpleProductionsList.add(x);
+          // create nonterminal X
+          NonTerminal nx = new NonTerminal();
+          nx.setName(name);
+          nx.setProd(x);
+          return nx;
+      } else if (e instanceof OneOrMore) {
+          // (exp)+ --> exp X; X = epsilon | X exp ... --> X = exp exp and set X.isEmptyPossible() = canBeEmpty(exp)
+          Sequence s = new Sequence();
+          BNFProduction x = new BNFProduction();
+          boolean empty = canBeEmpty(((OneOrMore)e).expansion); // I don't know why would anyone do it, but who am I to judge
+          Expansion exp = expansionToBNF(((OneOrMore)e).expansion);
+          if (exp instanceof Sequence) {
+              s.units.addAll(((Sequence)exp).units);
+              s.units.addAll(((Sequence)exp).units);
+          } else {
+              s.units.add(exp);
+              s.units.add(exp);
+          }
+                    
+          nontermCount++;
+          String name = nontermCount.toString();          
+          x.setLhs(name);
+          x.setEmptyPossible(empty);
+          x.setExpansion(s);
+          simpleProductions.put(name, x);
+          simpleProductionsList.add(x);
+          // create nonterminal X
+          NonTerminal nx = new NonTerminal();
+          nx.setName(name);
+          nx.setProd(x);
+          return nx;
+      } else if (e instanceof Action) {
+          return e; // I guess it's easier to skip Actions than null
+      } else if (e instanceof TryBlock) {
+          return expansionToBNF(((TryBlock)e).exp);
+      }
+      
+      return new Action(); // anything else will be skipped
+  }
 
   void build(CodeGenerator codeGenerator) {
     NormalProduction p;
-    JavaCodeProduction jp;
-    CppCodeProduction cp;
+    JavaCodeProduction jp; // HANKANOTE prejmenovane CodeProduction - extends NormalProduction
+    CppCodeProduction cp; // HANKANOTE -||-
     Token t = null;
+    
+    // generate First sets for each nonterminal
+    if (firstSet == null) {
+      firstSet = new boolean[tokenCount];
+    }  
+    
+    ebnfToBnf(); // translate ebnf production to bnf to count Follow sets more easily
+    
+    for (java.util.Iterator<NormalProduction> prodIterator = simpleProductionsList.iterator(); prodIterator.hasNext();) {
+        for (int i = 0; i < tokenCount; i++) {
+          firstSet[i] = false;
+        }
+        boolean[] first = new boolean[tokenCount];
+        NormalProduction prod = prodIterator.next();
+        genFirstSet(prod.getExpansion());
+        System.arraycopy(firstSet, 0, first, 0, tokenCount);
+        prod.setFirstSet(first); 
+        String lhs = prod.getLhs();
+        //simpleProductions.put(lhs, prod);
+        NormalProduction orig = (NormalProduction)production_table.get(lhs);
+        if (orig != null) {
+            orig.setFirstSet(first); // this is the original grammar productions we work with 
+        }
+    }
+    
+    // generate Follow sets. Starting nonterminal is the lhs of the production 
+    // defined first in the grammar file
+
+    for (java.util.Iterator prodIterator = simpleProductionsList.iterator(); prodIterator.hasNext();) {
+        NormalProduction np = (NormalProduction)prodIterator.next();
+        np.initFollowSet(tokenCount);
+    }
+    
+    // genFollowSet(); moje
 
     this.codeGenerator = codeGenerator;
-    for (java.util.Iterator prodIterator = bnfproductions.iterator(); prodIterator.hasNext();) {
+    //HANKANOTE generuj metodu pro kazdou produkci
+    for (java.util.Iterator prodIterator = bnfproductions.iterator(); prodIterator.hasNext();) { 
       p = (NormalProduction)prodIterator.next();
+/*
+      System.out.println(p.getLhs() + ": "); //
+      boolean[] fs = p.getFirstSet(); //
+      for (int i = 0; i < tokenCount; i++) { //          
+          if (fs[i])
+            System.out.println("\t" + i); //
+      } //
+      if (true) //
+        continue; //
+*/
       if (p instanceof CppCodeProduction) {
           cp = (CppCodeProduction)p;
 
@@ -1479,14 +1923,14 @@ public class ParseEngine {
           }
           codeGenerator.genCodeLine("  }");
           codeGenerator.genCodeLine(""); 	  
-      } else
-      if (p instanceof JavaCodeProduction) {
+      } else // HANKANOTE cilovy jazyk je Java
+      if (p instanceof JavaCodeProduction) { // JAVACODE production
         if (!isJavaDialect) {
           JavaCCErrors.semantic_error("Cannot use JAVACODE productions with C++ output (yet).");
           continue;
         }
         jp = (JavaCodeProduction)p;
-        t = (Token)(jp.getReturnTypeTokens().get(0));
+        t = (Token)(jp.getReturnTypeTokens().get(0)); // return type
         codeGenerator.printTokenSetup(t); ccol = 1;
         codeGenerator.printLeadingComments(t);
         codeGenerator.genCode("  " + staticOpt() + (p.getAccessMod() != null ? p.getAccessMod() + " " : ""));
@@ -1497,7 +1941,7 @@ public class ParseEngine {
           codeGenerator.printToken(t);
         }
         codeGenerator.printTrailingComments(t);
-        codeGenerator.genCode(" " + jp.getLhs() + "(");
+        codeGenerator.genCode(" " + jp.getLhs() + "("); // NETERM(params) {
         if (jp.getParameterListTokens().size() != 0) {
           codeGenerator.printTokenSetup((Token)(jp.getParameterListTokens().get(0)));
           for (java.util.Iterator it = jp.getParameterListTokens().iterator(); it.hasNext();) {
@@ -1524,7 +1968,7 @@ public class ParseEngine {
           codeGenerator.genCodeLine("    trace_call(\"" + JavaCCGlobals.addUnicodeEscapes(jp.getLhs()) + "\");");
           codeGenerator.genCode("    try {");
         }
-        if (jp.getCodeTokens().size() != 0) {
+        if (jp.getCodeTokens().size() != 0) { // generuj JAVACODE
           codeGenerator.printTokenSetup((Token)(jp.getCodeTokens().get(0))); cline--;
           codeGenerator.printTokenList(jp.getCodeTokens());
         }
@@ -1534,12 +1978,12 @@ public class ParseEngine {
           codeGenerator.genCodeLine("      trace_return(\"" + JavaCCGlobals.addUnicodeEscapes(jp.getLhs()) + "\");");
           codeGenerator.genCodeLine("    }");
         }
-        codeGenerator.genCodeLine("  }");
+        codeGenerator.genCodeLine("  }"); // konec NETERM()
         codeGenerator.genCodeLine("");
-      } else {
+      } else { // klasicka BNF produkce
         buildPhase1Routine((BNFProduction)p);
       }
-    }
+    } // HANKANOTE endfor kazdou produkci
 
     codeGenerator.switchToIncludeFile();
     for (int phase2index = 0; phase2index < phase2list.size(); phase2index++) {
