@@ -137,8 +137,8 @@ public final class LookaheadWalk {
       rest.add(toSplit.get(i));
     }
   }
-
-  public static List<MatchInfo> genFollowSet(List<MatchInfo> partialMatches, Expansion exp, long generation) {
+// HANKANOTE pouziva se v LookaheadCalc 238
+  public static List<MatchInfo> genFollowSet(List<MatchInfo> partialMatches, Expansion exp, long generation)  {
     if (exp.myGeneration == generation) {
       return new ArrayList<MatchInfo>();
     }
@@ -154,7 +154,9 @@ public final class LookaheadWalk {
       List parents = ((NormalProduction)exp.parent).getParents();
       List<MatchInfo> retval = new ArrayList<MatchInfo>();
 //    System.out.println("1; gen: " + generation + "; exp: " + exp);
+//    System.out.println(parents.size());
       for (int i = 0; i < parents.size(); i++) {
+          // System.out.println(((NormalProduction)parents.get(i)).getLhs());
         List<MatchInfo> v = genFollowSet(partialMatches, (Expansion)parents.get(i), generation);
         listAppend(retval, v);
       }
@@ -172,11 +174,11 @@ public final class LookaheadWalk {
       List<MatchInfo> v2 = new ArrayList<MatchInfo>();
       listSplit(v, partialMatches, v1, v2);
       if (v1.size() != 0) {
-//System.out.println("2; gen: " + generation + "; exp: " + exp);
+// System.out.println("2; gen: " + generation + "; exp: " + exp);
         v1 = genFollowSet(v1, seq, generation);
       }
       if (v2.size() != 0) {
-//System.out.println("3; gen: " + generation + "; exp: " + exp);
+// System.out.println("3; gen: " + generation + "; exp: " + exp);
         v2 = genFollowSet(v2, seq, Expansion.nextGenerationIndex++);
       }
       listAppend(v2, v1);
@@ -196,17 +198,17 @@ public final class LookaheadWalk {
       List<MatchInfo> v2 = new ArrayList<MatchInfo>();
       listSplit(moreMatches, partialMatches, v1, v2);
       if (v1.size() != 0) {
-//		System.out.println("4; gen: " + generation + "; exp: " + exp);
+		// System.out.println("4; gen: " + generation + "; exp: " + exp);
         v1 = genFollowSet(v1, (Expansion)exp.parent, generation);
       }
       if (v2.size() != 0) {
-//		System.out.println("5; gen: " + generation + "; exp: " + exp);
+		// System.out.println("5; gen: " + generation + "; exp: " + exp);
         v2 = genFollowSet(v2, (Expansion)exp.parent, Expansion.nextGenerationIndex++);
       }
       listAppend(v2, v1);
       return v2;
     } else {
-//		System.out.println("6; gen: " + generation + "; exp: " + exp);
+		// System.out.println("6; gen: " + generation + "; exp: " + exp);
     	return genFollowSet(partialMatches, (Expansion)exp.parent, generation);
     }
   }

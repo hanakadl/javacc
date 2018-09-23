@@ -114,25 +114,27 @@ public class NormalProduction {
   private Token firstToken;
 
   protected String eol = System.getProperty("line.separator", "\n");
-  protected StringBuffer dumpPrefix(int indent) {
+  // vytvari odsazeni
+  protected StringBuffer dumpPrefix(int indent) { 
     StringBuffer sb = new StringBuffer(128);
     for (int i = 0; i < indent; i++)
       sb.append("  ");
     return sb;
   }
-
+  // vraci "NormalProduction" ?
   protected String getSimpleName() {
     String name = getClass().getName();
     return name.substring(name.lastIndexOf(".")+1); // strip the package name
   }
-
+  // vraci formatovany strom expanzi z teto produkce
   public StringBuffer dump(int indent, Set alreadyDumped) {
+    // *odsazeni**hash* NormalProduction *nazevRozgenNeterminalu* 
     StringBuffer sb = dumpPrefix(indent).append(System.identityHashCode(this)).append(' ').append(getSimpleName()).append(' ').append(getLhs());
     if (!alreadyDumped.contains(this))
     {
       alreadyDumped.add(this);
       if (getExpansion() != null)
-      {
+      { // \n*expansion.dump()*
         sb.append(eol).append(getExpansion().dump(indent + 1, alreadyDumped));
       }
     }

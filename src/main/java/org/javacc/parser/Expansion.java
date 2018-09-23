@@ -109,7 +109,7 @@ public class Expansion {
     String name = getClass().getName();
     return name.substring(name.lastIndexOf(".")+1); // strip the package name
   }
-
+// [*line*,*column* *hash* Expansion]
   public String toString() {
     return "[" + getLine() + "," + getColumn() + " " + System.identityHashCode(this) + " " + getSimpleName() + "]";
   }
@@ -121,7 +121,7 @@ public class Expansion {
       sb.append("  ");
     return sb;
   }
-
+  // *odsazeni**hash* Expansion
   public StringBuffer dump(int indent, Set<? super Expansion> alreadyDumped) {
     StringBuffer value = dumpPrefix(indent).append(System.identityHashCode(this)).append(" ").append(getSimpleName());
     return value;

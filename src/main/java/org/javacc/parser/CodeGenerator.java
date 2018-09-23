@@ -38,6 +38,7 @@ public class CodeGenerator {
     }
     outputBuffer.append("0}");
   }
+  // outputBuffer .= codecodecodecode...\n
   public void genCodeLine(Object... code) {
     genCode(code);
     genCode("\n");
@@ -48,7 +49,7 @@ public class CodeGenerator {
       outputBuffer.append(s);
     }
   }
-
+  // /* fileName */ na zacatek mainBufferu, a ulozi mainBuffer do fileName
   public void saveOutput(String fileName) {
     if (!isJavaLanguage()) {
       String incfilePath = fileName.replace(".cc", ".h");
@@ -129,10 +130,10 @@ public class CodeGenerator {
   }
 
   protected int cline, ccol;
-
+  // nastaveni cline, ccol
   protected void printTokenSetup(Token t) {
 		Token tt = t;
-		
+		// posun se zpet na prvni specialni token (pokud spec. token primo predchazi t)
 		while (tt.specialToken != null) {
 			tt = tt.specialToken;
 		}
@@ -158,17 +159,17 @@ public class CodeGenerator {
 
   protected String getStringForTokenOnly(Token t) {
     String retval = "";
-    for (; cline < t.beginLine; cline++) {
+    for (; cline < t.beginLine; cline++) { // odradkuj
       retval += "\n"; ccol = 1;
     }
-    for (; ccol < t.beginColumn; ccol++) {
+    for (; ccol < t.beginColumn; ccol++) { // do spravneho sloupce
       retval += " ";
     }
     if (t.kind == JavaCCParserConstants.STRING_LITERAL ||
         t.kind == JavaCCParserConstants.CHARACTER_LITERAL)
-       retval += addUnicodeEscapes(t.image);
+       retval += addUnicodeEscapes(t.image); // pokud je token konst. pridej na konec
     else
-       retval += t.image;
+       retval += t.image; // pridej na konec a protoze je token delsi, tak uprav cline a ccol
     cline = t.endLine;
     ccol = t.endColumn+1;
     if (t.image.length() > 0) {
@@ -184,7 +185,7 @@ public class CodeGenerator {
   protected void printToken(Token t) {
     genCode(getStringToPrint(t));
   }
-
+// tiskne tokeny od prvniho specialniho
   protected String getStringToPrint(Token t) {
     String retval = "";
     Token tt = t.specialToken;

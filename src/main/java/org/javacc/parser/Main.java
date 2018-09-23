@@ -191,7 +191,7 @@ private static void printOptionInfo(OptionType filter, OptionInfo optionInfo, in
 
 	
 
-    try {
+    try { // HANKANOTE open (grammar) file
       java.io.File fp = new java.io.File(args[args.length-1]);
       if (!fp.exists()) {
          System.out.println("File " + args[args.length-1] + " not found.");
@@ -210,7 +210,7 @@ private static void printOptionInfo(OptionType filter, OptionInfo optionInfo, in
       return 1;
     }
 
-    try {
+    try { // HANKANOTE: po 294; volba jazyka, lexGenu (231), 256 ParseGen.start(), 260 LexGen.start()
       System.out.println("Reading from file " + args[args.length-1] + " . . .");
       JavaCCGlobals.fileName = JavaCCGlobals.origFileName = args[args.length-1];
       JavaCCGlobals.jjtreeGenerated = JavaCCGlobals.isGeneratedBy("JJTree", args[args.length-1]);
@@ -245,8 +245,8 @@ private static void printOptionInfo(OptionType filter, OptionInfo optionInfo, in
               "Please make sure you create the parser/lexer using a Reader with the correct character encoding.");
       }
 
-      Semanticize.start();
-      boolean isBuildParser = Options.getBuildParser();
+      Semanticize.start(); // HANKANOTE extends JavaCCGlobals
+      boolean isBuildParser = Options.getBuildParser(); // HANKANOTE chce uzivatel vytvorit parser?
       
  	  // 2012/05/02 -- This is not the best way to add-in GWT support, really the code needs to turn supported languages into enumerations
 	  // and have the enumerations describe the deltas between the outputs. The current approach means that per-langauge configuration is distributed

@@ -65,17 +65,17 @@ public class ParseGen extends CodeGenerator implements JavaCCParserConstants {
 			throw new MetaParseException();
 		}
 
-		if (Options.getBuildParser()) {
-			final List<String> tn = new ArrayList<String>(toolNames);
-			tn.add(toolName);
+		if (Options.getBuildParser()) { // HANKANOTE ma se vytvorit parser
+			final List<String> tn = new ArrayList<String>(toolNames); //The list of tools that have participated in generating the input grammar file.
+			tn.add(toolName); // "JavaCC"
 			
 			// This is the first line generated -- the the comment line at the top of the generated parser
-			genCodeLine("/* " + getIdString(tn, cu_name + ".java") + " */");
+			genCodeLine("/* " + getIdString(tn, cu_name + ".java") + " */"); // HANKANOTE cu_name = "SimpleLeft" napriklad
 
 			boolean implementsExists = false;
 			final boolean extendsExists = false;
 
-			if (cu_to_insertion_point_1.size() != 0) {
+			if (cu_to_insertion_point_1.size() != 0) { // pokud je neco pred tridou SimpleLeft, tak to pretiskneme do vysl. parseru jak to je
 				Object firstToken = cu_to_insertion_point_1.get(0);
 				printTokenSetup((Token) firstToken);
 				ccol = 1;
@@ -107,13 +107,13 @@ public class ParseGen extends CodeGenerator implements JavaCCParserConstants {
 			genCodeLine("");
 			genCodeLine("");
 
-			new ParseEngine().build(this);
+			new ParseEngine().build(this); // HANKANOTE zpracovava peravidla na metody
 
 			if (Options.getStatic()) {
 				genCodeLine("  static private " + Options.getBooleanType()
 						+ " jj_initialized_once = false;");
 			}
-			if (Options.getUserTokenManager()) {
+			if (Options.getUserTokenManager()) { // staticOpt - jestli uzivatel chce mit vsechno static (defaultne ano)
 				genCodeLine("  /** User defined Token Manager. */");
 				genCodeLine("  " + staticOpt() + "public TokenManager token_source;");
 			} else {
@@ -131,13 +131,13 @@ public class ParseGen extends CodeGenerator implements JavaCCParserConstants {
 			genCodeLine("  " + staticOpt() + "public Token token;");
 			genCodeLine("  /** Next token. */");
 			genCodeLine("  " + staticOpt() + "public Token jj_nt;");
-			if (!Options.getCacheTokens()) {
-				genCodeLine("  " + staticOpt() + "private int jj_ntk;");
+			if (!Options.getCacheTokens()) { // nenastavena user_option cachovat tokeny
+				genCodeLine("  " + staticOpt() + "private int jj_ntk;"); 
 			}
-			if (Options.getDepthLimit() > 0) {
+			if (Options.getDepthLimit() > 0) { // nastavena max hloubka rekurze
 				genCodeLine("  " + staticOpt() + "private int jj_depth;");
 			}
-			if (jj2index != 0) {
+			if (jj2index != 0) { // globalni konst. defaultne 0
 				genCodeLine("  " + staticOpt() + "private Token jj_scanpos, jj_lastpos;");
 				genCodeLine("  " + staticOpt() + "private int jj_la;");
 				if (lookaheadNeeded) {
@@ -148,7 +148,7 @@ public class ParseGen extends CodeGenerator implements JavaCCParserConstants {
 							+ " jj_semLA;");
 				}
 			}
-			if (Options.getErrorReporting()) {
+			if (Options.getErrorReporting()) { // return The requested error reporting value. (defaultne ano)
 				genCodeLine("  " + staticOpt() + "private int jj_gen;");
 				genCodeLine("  " + staticOpt() + "final private int[] jj_la1 = new int["
 						+ maskindex + "];");
