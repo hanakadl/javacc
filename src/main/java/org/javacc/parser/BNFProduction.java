@@ -47,6 +47,14 @@ public class BNFProduction extends NormalProduction {
    * include a preceding "if (true)".
    */
   private boolean jumpPatched;
+  
+  /**
+   * A list of nonterminals leading to right recursion for this production.
+   * In case of direct recursion LHS is included. Indirect recursion is traced
+   * only one level (A -> B, B -> A).
+   */
+  private String[] rightRecursion = new String[10];
+  private int rrIndex = 0;
 
   /**
    * @return the declaration_tokens
@@ -67,6 +75,30 @@ public class BNFProduction extends NormalProduction {
    */
   public boolean isJumpPatched() {
     return jumpPatched;
+  }
+  
+  public void addRR(String nonterminal) {
+      if (rrIndex == rightRecursion.length) {
+          String[] newArray = new String[rrIndex*2];
+          System.arraycopy(rightRecursion, 0, newArray, 0, rrIndex);
+          rightRecursion = newArray;
+      }
+      
+      rightRecursion[rrIndex] = nonterminal;
+      rrIndex++;
+  }
+  
+  public boolean isRR(String symbol) {
+      for(int i = 0; i < rrIndex; i++){
+        if (rightRecursion[i].equals(symbol)) {
+            return true;
+        }
+      }
+      return false;
+  }
+  
+  public boolean hasRR() {
+      return rrIndex > 0;
   }
 
 }
