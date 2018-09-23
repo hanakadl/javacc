@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.Stack;
 
 import static org.javacc.parser.JavaCCGlobals.*;
@@ -230,15 +231,15 @@ public class ParseEngine {
    * A particular action entry ("actions[i]") can be null, in which
    * case, a noop is generated for that action.
    */
-  String buildLookaheadChecker(Lookahead[] conds, String[] actions) {
+  String buildLookaheadChecker(Lookahead[] conds, String[] actions) { // HANKANOTE vypada to, ze stavi switch prikazy
 
     // The state variables.
     int state = NOOPENSTM;
     int indentAmt = 0;
     boolean[] casedValues = new boolean[tokenCount];
-    String retval = "";
-    Lookahead la;
-    Token t = null;
+    String retval = ""; // HANKANOTE vygenerovany kod
+    Lookahead la; // HANKANOTE !!!!
+    Token t = null; // HANKANOTE tokenCount = pocet druhu tokenu (o 1 vetsi nez nejvyssi ord)
     int tokenMaskSize = (tokenCount-1)/32 + 1;
     int[] tokenMask = null;
 
@@ -247,7 +248,7 @@ public class ParseEngine {
     while (index < conds.length) {
 
       la = conds[index];
-      jj2LA = false;
+      jj2LA = false; // HANKANOTE je treba pocitat semanticky nebo >1 lookahead?
 
       if ((la.getAmount() == 0) ||
           Semanticize.emptyExpansionExists(la.getLaExpansion()) ||
@@ -322,7 +323,7 @@ public class ParseEngine {
           case OPENIF:
             retval += "\u0002\n" + "} else {\u0001";
             // Control flows through to next case.
-          case NOOPENSTM:
+          case NOOPENSTM: // HANKANOTE otevri switch
             retval += "\n" + "switch (";
             if (Options.getCacheTokens()) {
               if(Options.isOutputLanguageCpp()) {
@@ -345,7 +346,7 @@ public class ParseEngine {
             // Don't need to do anything if state is OPENSWITCH.
           }
           for (int i = 0; i < tokenCount; i++) {
-            if (firstSet[i]) {
+            if (firstSet[i]) { // HANKANOTE dany token je ve First tehle expanze (=conds[x])
               if (!casedValues[i]) {
                 casedValues[i] = true;
                 retval += "\u0002\ncase ";
@@ -632,7 +633,7 @@ public class ParseEngine {
     }
   }
 
-  void buildPhase1Routine(BNFProduction p) {
+  void buildPhase1Routine(BNFProduction p) { // HANKANOTE generuje metodu pro produkci
     Token t;
     t = (Token)(p.getReturnTypeTokens().get(0));
     boolean voidReturn = false;
@@ -651,7 +652,7 @@ public class ParseEngine {
         codeGenerator.printToken(t);
       }
       codeGenerator.printTrailingComments(t);
-      codeGenerator.genCode(" " + p.getLhs() + "(");
+      codeGenerator.genCode(" " + p.getLhs() + "("); // HANKANOTE NETERM(params) {
       if (p.getParameterListTokens().size() != 0) {
         codeGenerator.printTokenSetup((Token)(p.getParameterListTokens().get(0)));
         for (java.util.Iterator it = p.getParameterListTokens().iterator(); it.hasNext();) {
@@ -675,7 +676,7 @@ public class ParseEngine {
       error_ret = generateCPPMethodheader(p, t);
     }
 
-    codeGenerator.genCode(" {");
+    codeGenerator.genCode(" {"); // HANKANOTE telo metody NETERM
 
     if ((Options.booleanValue(Options.USEROPTION__CPP_STOP_ON_FIRST_ERROR) && error_ret != null)
         || (Options.getDepthLimit() > 0 && !voidReturn && !isJavaDialect)) {
@@ -698,7 +699,7 @@ public class ParseEngine {
         codeGenerator.genCodeLine("    try {");
         indentamt = 6;
       }
-    
+    // HANKANOTE semanticke akce
     if (!Options.booleanValue(Options.USEROPTION__CPP_IGNORE_ACTIONS) &&
         p.getDeclarationTokens().size() != 0) {
       codeGenerator.printTokenSetup((Token)(p.getDeclarationTokens().get(0))); cline--;
@@ -709,9 +710,21 @@ public class ParseEngine {
       codeGenerator.printTrailingComments(t);
     }
     
-    String code = phase1ExpansionGen(p.getExpansion());
+    String code; // HANKANOTE telo metody
+    if (p.hasRR()) {
+        codeGenerator.genCodeLine("");
+        codeGenerator.genCodeLine("  for (;;) {");
+        indentamt++;
+        code = phase1ExpansionGen(p.getExpansion(),p.getLhs(),p.getRR());       
+    } else {
+        code = phase1ExpansionGen(p.getExpansion(),"",null);
+    }
+    
     dumpFormattedString(code);
-    codeGenerator.genCodeLine("");
+    if (p.hasRR()) {
+        codeGenerator.genCodeLine(""); // pridane mnou, docasne
+        codeGenerator.genCodeLine("  }"); // pridane mnou, docasne
+    }
     
     if (p.isJumpPatched() && !voidReturn) {
       if (isJavaDialect) {
@@ -751,13 +764,23 @@ public class ParseEngine {
       codeGenerator.genCode(" ");
     }
   }
-
-  String phase1ExpansionGen(Expansion e) {
+  
+  /**
+   * 
+   * @param e
+   * @param lhs - the left hand side nonterminal of the production being zpracovánané.
+   *            If there is no right recursion, it isn't needed and is set to ""
+   * @param rr - array of names of nonterminals leading to indirect right recursion
+   * @return 
+   */
+  String phase1ExpansionGen(Expansion e, String lhs, Set<String> rr) { // HANKANOTE generuje telo metody, e je prava strana produkce
     String retval = "";
     Token t = null;
     Lookahead[] conds;
     String[] actions;
+    System.out.println(lhs + ": ");
     if (e instanceof RegularExpression) {
+        System.out.println("RegularExpression");
       RegularExpression e_nrw = (RegularExpression)e;
       retval += "\n";
       if (e_nrw.lhsTokens.size() != 0) {
@@ -787,6 +810,7 @@ public class ParseEngine {
       }
 
     } else if (e instanceof NonTerminal) {
+        System.out.println("NonTerminal");
       NonTerminal e_nrw = (NonTerminal)e;
       retval += "\n";
       if (e_nrw.getLhsTokens().size() != 0) {
@@ -811,7 +835,8 @@ public class ParseEngine {
       if ( !isJavaDialect && Options.booleanValue(Options.USEROPTION__CPP_STOP_ON_FIRST_ERROR)) {
 	          retval += "\n    { if (hasError) { return __ERROR_RET__; } }\n";
       }
-    } else if (e instanceof Action) {
+    } else if (e instanceof Action) { // HANKANOTE semanticke akce
+        System.out.println("Action");
       Action e_nrw = (Action)e;
       retval += "\u0003\n";
       if (!Options.booleanValue(Options.USEROPTION__CPP_IGNORE_ACTIONS) &&
@@ -825,6 +850,7 @@ public class ParseEngine {
       }
       retval += "\u0004";
     } else if (e instanceof Choice) {
+        System.out.println("Choice");
       Choice e_nrw = (Choice)e;
       conds = new Lookahead[e_nrw.getChoices().size()];
       actions = new String[e_nrw.getChoices().size() + 1];
@@ -838,16 +864,25 @@ public class ParseEngine {
       // thrown first.
       Sequence nestedSeq;
       for (int i = 0; i < e_nrw.getChoices().size(); i++) {
-        nestedSeq = (Sequence)(e_nrw.getChoices().get(i));
-        actions[i] = phase1ExpansionGen(nestedSeq);
+        nestedSeq = (Sequence)(e_nrw.getChoices().get(i)); // v podstate jen zmena typu
+        actions[i] = phase1ExpansionGen(nestedSeq,lhs,rr);
         conds[i] = (Lookahead)(nestedSeq.units.get(0));
       }
-      retval = buildLookaheadChecker(conds, actions);
+      retval = buildLookaheadChecker(conds, actions); // HANKANOTE generuje switch
     } else if (e instanceof Sequence) {
+        System.out.println("Sequence");
       Sequence e_nrw = (Sequence)e;
       // We skip the first element in the following iteration since it is the
       // Lookahead object.
-      for (int i = 1; i < e_nrw.units.size(); i++) {
+      // find the index of last non-Action unit
+      int j = e_nrw.units.size() - 1;
+      for (; j > 0; j--) {
+          Expansion exp = (Expansion)e_nrw.units.get(j);
+          if (!(exp instanceof Action))
+              break;
+      }      
+      int i = 1;
+      for (; i < j; i++) { 
         // For C++, since we are not using exceptions, we will protect all the
         // expansion choices with if (!error)
         boolean wrap_in_block = false;
@@ -861,14 +896,85 @@ public class ParseEngine {
             retval += "\nif (" + (isJavaDialect ? "true" : "!hasError") + ") {";
           }
         }
-        retval += phase1ExpansionGen((Expansion)(e_nrw.units.get(i)));
+        retval += phase1ExpansionGen((Expansion)(e_nrw.units.get(i)),"",null);
         if (wrap_in_block) {
           retval += "\n}";
         }
       }
-    } else if (e instanceof OneOrMore) {
+      // now check last non-Action unit for right recursion
+      boolean wrap_in_block = false;
+        if (!JavaCCGlobals.jjtreeGenerated && !isJavaDialect) {
+          // for the last one, if it's an action, we will not protect it.
+          Expansion elem = (Expansion)e_nrw.units.get(i);
+          if (!(elem instanceof Action) ||
+              !(e.parent instanceof BNFProduction)) {
+            wrap_in_block = true;
+            retval += "\nif (" + (isJavaDialect ? "true" : "!hasError") + ") {";
+          }
+        }
+        
+        // there might be right recursion
+        boolean ret = false; // there might be Actions following this so return has to wait
+        if (!lhs.equals("") && (Expansion)e_nrw.units.get(i) instanceof NonTerminal) {
+            String nt = ((NonTerminal)e_nrw.units.get(i)).getName();
+            if (!nt.equals(lhs)) {
+                if (rr.contains(nt)) { // indirect recursion
+                    // expand nt. Keep lhs this one and remove nt from rr set 
+                    // because at this point we don't care for more right recursion,
+                    // just need the correct behaviour when a sequence ends with lhs
+                    // and when it is anything else
+                    NormalProduction q = (NormalProduction)production_table.get(nt);
+                    if (q instanceof BNFProduction) {
+                        Set<String> rr2 = rr;
+                        rr2.remove(nt);
+                        retval += phase1ExpansionGen(q.getExpansion(),lhs,rr2);
+                    } else { 
+                        // JAVACODE - this shouldn't happen, because q expands to lhs, 
+                        // but just to be on the safe side... treat it as random nonterminal
+                        retval += phase1ExpansionGen((Expansion)(e_nrw.units.get(i)),"",null);
+                        ret = true;
+                    }
+                } else { // random nonterminal, no right recursion
+                    retval += phase1ExpansionGen((Expansion)(e_nrw.units.get(i)),"",null);
+                    ret = true;
+                }
+            } // else nt.equals(lhs) -> do nothing
+        } else { // no right recursion
+            retval += phase1ExpansionGen((Expansion)(e_nrw.units.get(i)),"",null);
+            if (!lhs.equals(""))
+                ret = true;
+        }
+        
+        if (wrap_in_block) {
+          retval += "\n}";
+        }
+        
+        // don't forget the rest of Actions
+        for (++i; i < e_nrw.units.size(); i++) {
+            boolean wrap_in_block_x = false;
+            if (!JavaCCGlobals.jjtreeGenerated && !isJavaDialect) {
+              // for the last one, if it's an action, we will not protect it.
+              Expansion elem = (Expansion)e_nrw.units.get(i);
+              if (!(elem instanceof Action) ||
+                  !(e.parent instanceof BNFProduction) ||
+                  i != e_nrw.units.size() - 1) {
+                wrap_in_block_x = true;
+                retval += "\nif (" + (isJavaDialect ? "true" : "!hasError") + ") {";
+              }
+            }
+            retval += phase1ExpansionGen((Expansion)(e_nrw.units.get(i)),"",null);
+            if (wrap_in_block_x) {
+              retval += "\n}";
+            }
+        }
+        if (ret) {// here comes the return
+            retval += "\nif(true) return;"; // because it creates unreachable break
+            System.out.println("x"+lhs);
+        }
+    } else if (e instanceof OneOrMore) { // HANKANOTE napr. foo+
+        System.out.println("OneOrMore");
       OneOrMore e_nrw = (OneOrMore)e;
-      Expansion nested_e = e_nrw.expansion;
+      Expansion nested_e = e_nrw.expansion; 
       Lookahead la;
       if (nested_e instanceof Sequence) {
         la = (Lookahead)(((Sequence)nested_e).units.get(0));
@@ -883,7 +989,7 @@ public class ParseEngine {
         retval += "label_" + labelIndex + ":\n";
       }
       retval += "while (" + (isJavaDialect ? "true" : "!hasError") + ") {\u0001";
-      retval += phase1ExpansionGen(nested_e);
+      retval += phase1ExpansionGen(nested_e,"",null);
       conds = new Lookahead[1];
       conds[0] = la;
       actions = new String[2];
@@ -901,6 +1007,7 @@ public class ParseEngine {
         retval += "\nend_label_" + labelIndex + ": ;";
       }
     } else if (e instanceof ZeroOrMore) {
+        System.out.println("ZeroOrMore");
       ZeroOrMore e_nrw = (ZeroOrMore)e;
       Expansion nested_e = e_nrw.expansion;
       Lookahead la;
@@ -927,12 +1034,13 @@ public class ParseEngine {
         actions[1] = "\ngoto end_label_" + labelIndex + ";";
       }
       retval += buildLookaheadChecker(conds, actions);
-      retval += phase1ExpansionGen(nested_e);
+      retval += phase1ExpansionGen(nested_e,"",null);
       retval += "\u0002\n" + "}";
       if (!isJavaDialect) {
         retval += "\nend_label_" + labelIndex + ": ;";
       }
     } else if (e instanceof ZeroOrOne) {
+        System.out.println("ZeroOrOne");
       ZeroOrOne e_nrw = (ZeroOrOne)e;
       Expansion nested_e = e_nrw.expansion;
       Lookahead la;
@@ -946,16 +1054,17 @@ public class ParseEngine {
       conds = new Lookahead[1];
       conds[0] = la;
       actions = new String[2];
-      actions[0] = phase1ExpansionGen(nested_e);
+      actions[0] = phase1ExpansionGen(nested_e,lhs,rr);
       actions[1] = "\n;";
       retval += buildLookaheadChecker(conds, actions);
     } else if (e instanceof TryBlock) {
+        System.out.println("TryBlock");
       TryBlock e_nrw = (TryBlock)e;
       Expansion nested_e = e_nrw.exp;
       java.util.List list;
       retval += "\n";
       retval += "try {\u0001";
-      retval += phase1ExpansionGen(nested_e);
+      retval += phase1ExpansionGen(nested_e,"",null);
       retval += "\u0002\n" + "}";
       for (int i = 0; i < e_nrw.catchblks.size(); i++) {
         retval += " catch (";
@@ -1418,12 +1527,12 @@ public class ParseEngine {
 
   void build(CodeGenerator codeGenerator) {
     NormalProduction p;
-    JavaCodeProduction jp;
-    CppCodeProduction cp;
+    JavaCodeProduction jp; // prejmenovane CodeProduction - extends NormalProduction
+    CppCodeProduction cp; // -||-
     Token t = null;
 
     this.codeGenerator = codeGenerator;
-    for (java.util.Iterator prodIterator = bnfproductions.iterator(); prodIterator.hasNext();) {
+    for (java.util.Iterator prodIterator = bnfproductions.iterator(); prodIterator.hasNext();) { //HANKANOTE generuj metodu pro kazdou produkci
       p = (NormalProduction)prodIterator.next();
       if (p instanceof CppCodeProduction) {
           cp = (CppCodeProduction)p;
@@ -1479,14 +1588,14 @@ public class ParseEngine {
           }
           codeGenerator.genCodeLine("  }");
           codeGenerator.genCodeLine(""); 	  
-      } else
-      if (p instanceof JavaCodeProduction) {
+      } else // HANKANOTE cilovy jazyk je Java
+      if (p instanceof JavaCodeProduction) { // JAVACODE production
         if (!isJavaDialect) {
           JavaCCErrors.semantic_error("Cannot use JAVACODE productions with C++ output (yet).");
           continue;
         }
         jp = (JavaCodeProduction)p;
-        t = (Token)(jp.getReturnTypeTokens().get(0));
+        t = (Token)(jp.getReturnTypeTokens().get(0)); // return type
         codeGenerator.printTokenSetup(t); ccol = 1;
         codeGenerator.printLeadingComments(t);
         codeGenerator.genCode("  " + staticOpt() + (p.getAccessMod() != null ? p.getAccessMod() + " " : ""));
@@ -1497,7 +1606,7 @@ public class ParseEngine {
           codeGenerator.printToken(t);
         }
         codeGenerator.printTrailingComments(t);
-        codeGenerator.genCode(" " + jp.getLhs() + "(");
+        codeGenerator.genCode(" " + jp.getLhs() + "("); // NETERM(params) {
         if (jp.getParameterListTokens().size() != 0) {
           codeGenerator.printTokenSetup((Token)(jp.getParameterListTokens().get(0)));
           for (java.util.Iterator it = jp.getParameterListTokens().iterator(); it.hasNext();) {
@@ -1524,7 +1633,7 @@ public class ParseEngine {
           codeGenerator.genCodeLine("    trace_call(\"" + JavaCCGlobals.addUnicodeEscapes(jp.getLhs()) + "\");");
           codeGenerator.genCode("    try {");
         }
-        if (jp.getCodeTokens().size() != 0) {
+        if (jp.getCodeTokens().size() != 0) { // generuj JAVACODE
           codeGenerator.printTokenSetup((Token)(jp.getCodeTokens().get(0))); cline--;
           codeGenerator.printTokenList(jp.getCodeTokens());
         }
@@ -1534,12 +1643,12 @@ public class ParseEngine {
           codeGenerator.genCodeLine("      trace_return(\"" + JavaCCGlobals.addUnicodeEscapes(jp.getLhs()) + "\");");
           codeGenerator.genCodeLine("    }");
         }
-        codeGenerator.genCodeLine("  }");
+        codeGenerator.genCodeLine("  }"); // konec NETERM()
         codeGenerator.genCodeLine("");
-      } else {
+      } else { // klasicka BNF produkce
         buildPhase1Routine((BNFProduction)p);
       }
-    }
+    } // HANKANOTE endfor kazdou produkci
 
     codeGenerator.switchToIncludeFile();
     for (int phase2index = 0; phase2index < phase2list.size(); phase2index++) {

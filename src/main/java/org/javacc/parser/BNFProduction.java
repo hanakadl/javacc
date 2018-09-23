@@ -28,7 +28,9 @@
 package org.javacc.parser;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Describes BNF productions.
@@ -47,7 +49,14 @@ public class BNFProduction extends NormalProduction {
    * include a preceding "if (true)".
    */
   private boolean jumpPatched;
-
+  
+  /**
+   * A list of nonterminals leading to right recursion for this production.
+   * In case of direct recursion LHS is included. Indirect recursion is traced
+   * only one level (A -> B, B -> A).
+   */
+  Set<String> rightRecursion = new HashSet();
+  
   /**
    * @return the declaration_tokens
    */
@@ -67,6 +76,20 @@ public class BNFProduction extends NormalProduction {
    */
   public boolean isJumpPatched() {
     return jumpPatched;
+  }
+  
+  public boolean addRR(String nonterminal) {
+      return rightRecursion.add(nonterminal);
+  }
+  
+  public Set<String> getRR() {
+      return rightRecursion;
+  }
+  
+  public boolean hasRR() {
+      if (rightRecursion != null)
+        return !rightRecursion.isEmpty();
+      return false;
   }
 
 }
